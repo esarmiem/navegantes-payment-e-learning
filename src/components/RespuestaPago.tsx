@@ -70,6 +70,16 @@ const RespuestaPago = () => {
     verificarTransaccion();
   }, [searchParams, toast]);
 
+  useEffect(() => {
+    if (estado === "success" || estado === "error") {
+      // Redirige automáticamente después de 5 segundos
+      const timeout = setTimeout(() => {
+        router.push("/");
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [estado, router]);
+
   const handleVolverInicio = () => {
     router.push('/');
   };
@@ -114,6 +124,9 @@ const RespuestaPago = () => {
               <p className="text-sm text-muted-foreground">
                 ID de transacción: <code className="bg-muted px-2 py-1 rounded">{transaccion?.id}</code>
               </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Serás redirigido al inicio en unos segundos...
+              </p>
             </div>
             
             <div className="bg-muted/50 p-4 rounded-lg">
@@ -136,52 +149,57 @@ const RespuestaPago = () => {
   }
 
   // Estado de error
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
-      <Card className="w-full max-w-md animate-scale-in">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <XCircle className="w-10 h-10 text-red-600" />
-          </div>
-          <CardTitle className="text-2xl text-red-700">Pago No Completado</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6 text-center">
-          <div className="space-y-2">
-            <p className="text-muted-foreground">
-              Tu pago no pudo ser procesado exitosamente.
-            </p>
-            {transaccion?.status && (
-              <p className="text-sm text-muted-foreground">
-                Estado: <code className="bg-muted px-2 py-1 rounded">{transaccion.status}</code>
+  if (estado === 'error') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
+        <Card className="w-full max-w-md animate-scale-in">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <XCircle className="w-10 h-10 text-red-600" />
+            </div>
+            <CardTitle className="text-2xl text-red-700">Pago No Completado</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 text-center">
+            <div className="space-y-2">
+              <p className="text-muted-foreground">
+                Tu pago no pudo ser procesado exitosamente.
               </p>
-            )}
-          </div>
-          
-          <div className="bg-muted/50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-2">Posibles causas:</h3>
-            <ul className="text-sm text-muted-foreground space-y-1 text-left">
-              <li>• Fondos insuficientes</li>
-              <li>• Problemas con la tarjeta</li>
-              <li>• Transacción cancelada</li>
-              <li>• Error en los datos ingresados</li>
-            </ul>
-          </div>
-          
-          <div className="space-y-3">
-            {cliente && (
-              <Button onClick={handleReintentarPago} className="w-full">
-                Reintentar Pago
+              {transaccion?.status && (
+                <p className="text-sm text-muted-foreground">
+                  Estado: <code className="bg-muted px-2 py-1 rounded">{transaccion.status}</code>
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                Serás redirigido al inicio en unos segundos...
+              </p>
+            </div>
+            
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <h3 className="font-semibold mb-2">Posibles causas:</h3>
+              <ul className="text-sm text-muted-foreground space-y-1 text-left">
+                <li>• Fondos insuficientes</li>
+                <li>• Problemas con la tarjeta</li>
+                <li>• Transacción cancelada</li>
+                <li>• Error en los datos ingresados</li>
+              </ul>
+            </div>
+            
+            <div className="space-y-3">
+              {cliente && (
+                <Button onClick={handleReintentarPago} className="w-full">
+                  Reintentar Pago
+                </Button>
+              )}
+              <Button onClick={handleVolverInicio} variant="outline" className="w-full">
+                <Home className="w-4 h-4 mr-2" />
+                Volver al Inicio
               </Button>
-            )}
-            <Button onClick={handleVolverInicio} variant="outline" className="w-full">
-              <Home className="w-4 h-4 mr-2" />
-              Volver al Inicio
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 };
 
 export default RespuestaPago; 
