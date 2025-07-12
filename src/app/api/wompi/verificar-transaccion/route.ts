@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       // Enviar email de confirmación
       try {
         await resend.emails.send({
-          from: 'Navegantes <noreply@navegantes.com>',
-          to: ['dev.alaskatech@gmail.com'],
+          from: 'Navegantes <dev.alasktech@gmail.com>',
+          to: ['faritmajul@gmail.com'],
           subject: `Nueva Membresía Activada - ${cliente.nombres} ${cliente.apellidos}`,
           html: `
             <h2>Nueva Membresía Activada</h2>

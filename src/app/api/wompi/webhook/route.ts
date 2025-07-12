@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const body = await request.text();
     const signature = request.headers.get('x-signature');
     
-    // Verificar firma del webhook (opcional pero recomendado)
+    // 1. Verificar firma del webhook (opcional pero recomendado)
     const webhookSecret = process.env.WOMPI_WEBHOOK_SECRET_SANDBOX;
     if (webhookSecret && signature) {
       const expectedSignature = crypto
@@ -24,30 +24,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 2. Parsear el evento recibido
     const event = JSON.parse(body);
-    
-    // Solo procesar eventos de transacciones aprobadas
-    if (event.event === 'transaction.updated' && event.data.status === 'APPROVED') {
-      const transaction = event.data;
-      
-      // Buscar cliente por referencia
+
+    // 3. Procesar solo eventos de actualización de transacción
+    if (event.event === 'transaction.updated') {
+      // Según la documentación de Wompi, la transacción está en event.data.transaction
+      const transaction = event.data.transaction;
+      if (!transaction) {
+        console.error('No se encontró el objeto transaction en el evento');
+        return NextResponse.json({ error: 'Estructura de evento inválida' }, { status: 400 });
+      }
+
+      // Extraer estado y referencia
+      const wompiStatus = transaction.status ? transaction.status.toLowerCase() : 'unknown';
+      const referencia = transaction.reference;
+      const wompiId = transaction.id;
+
+      // 4. Buscar cliente por referencia de pago
       const { data: cliente, error: clienteError } = await supabase
         .from('clientes')
         .select('*')
-        .eq('referencia_pago', transaction.reference)
+        .eq('referencia_pago', referencia)
         .single();
 
       if (clienteError || !cliente) {
-        console.error('Cliente no encontrado para referencia:', transaction.reference);
+        console.error('Cliente no encontrado para referencia:', referencia);
         return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
       }
 
-      // Actualizar cliente
+      // 5. Actualizar cliente con el estado e ID de la transacción recibidos
       const { error: updateError } = await supabase
         .from('clientes')
         .update({
-          id_transaccion_wompi: transaction.id,
-          estado_transaccion: 'approved'
+          id_transaccion_wompi: wompiId,
+          estado_transaccion: wompiStatus
         })
         .eq('id', cliente.id);
 
@@ -56,33 +67,36 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Error al actualizar cliente' }, { status: 500 });
       }
 
-      // Enviar email de confirmación
-      try {
-        await resend.emails.send({
-          from: 'Navegantes <noreply@navegantes.com>',
-          to: ['dev.alaskatech@gmail.com'],
-          subject: `Nueva Membresía Activada - ${cliente.nombres} ${cliente.apellidos}`,
-          html: `
-            <h2>Nueva Membresía Activada (Webhook)</h2>
-            <p><strong>Cliente:</strong> ${cliente.nombres} ${cliente.apellidos}</p>
-            <p><strong>Identificación:</strong> ${cliente.identificacion}</p>
-            <p><strong>Email:</strong> ${cliente.correo_electronico}</p>
-            <p><strong>Teléfono:</strong> ${cliente.telefono}</p>
-            <p><strong>Plan:</strong> ${cliente.plan_seleccionado}</p>
-            <p><strong>Monto:</strong> $${(cliente.monto_pagado / 100).toLocaleString('es-CO')} COP</p>
-            <p><strong>ID Transacción Wompi:</strong> ${transaction.id}</p>
-            <p><strong>Referencia:</strong> ${cliente.referencia_pago}</p>
-            <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-CO')}</p>
-            <p><strong>Procesado por:</strong> Webhook automático</p>
-          `
-        });
-      } catch (emailError) {
-        console.error('Error al enviar email desde webhook:', emailError);
+      // 6. Solo enviar email si la transacción fue aprobada
+      if (wompiStatus === 'approved') {
+        try {
+          await resend.emails.send({
+            from: 'Navegantes <dev.alasktech@gmail.com>',
+            to: ['faritmajul@gmail.com'],
+            subject: `Nueva Membresía Activada - ${cliente.nombres} ${cliente.apellidos}`,
+            html: `
+              <h2>Nueva Membresía Activada (Webhook)</h2>
+              <p><strong>Cliente:</strong> ${cliente.nombres} ${cliente.apellidos}</p>
+              <p><strong>Identificación:</strong> ${cliente.identificacion}</p>
+              <p><strong>Email:</strong> ${cliente.correo_electronico}</p>
+              <p><strong>Teléfono:</strong> ${cliente.telefono}</p>
+              <p><strong>Plan:</strong> ${cliente.plan_seleccionado}</p>
+              <p><strong>Monto:</strong> $${(cliente.monto_pagado / 100).toLocaleString('es-CO')} COP</p>
+              <p><strong>ID Transacción Wompi:</strong> ${wompiId}</p>
+              <p><strong>Referencia:</strong> ${cliente.referencia_pago}</p>
+              <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-CO')}</p>
+              <p><strong>Procesado por:</strong> Webhook automático</p>
+            `
+          });
+        } catch (emailError) {
+          console.error('Error al enviar email desde webhook:', emailError);
+        }
       }
 
-      console.log('Webhook procesado exitosamente para transacción:', transaction.id);
+      console.log(`Webhook procesado para transacción: ${wompiId} con estado: ${wompiStatus}`);
     }
 
+    // 7. Responder siempre 200 para que Wompi no reintente innecesariamente
     return NextResponse.json({ success: true });
 
   } catch (error) {

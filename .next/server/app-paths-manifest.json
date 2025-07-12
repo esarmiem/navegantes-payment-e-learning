@@ -1,4 +1,6 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
   "/registro/page": "app/registro/page.js",
-  "/page": "app/page.js"
+  "/api/wompi/generar-firma/route": "app/api/wompi/generar-firma/route.js"
 }
