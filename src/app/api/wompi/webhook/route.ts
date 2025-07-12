@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       if (wompiStatus === 'approved') {
         try {
           await resend.emails.send({
-            from: 'Navegantes <dev.alasktech@gmail.com>',
+            from: 'Navegantes <dev.alaskatech@gmail.com>',
             to: ['faritmajul@gmail.com'],
             subject: `Nueva Membresía Activada - ${cliente.nombres} ${cliente.apellidos}`,
             html: `
